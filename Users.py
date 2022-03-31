@@ -1,4 +1,3 @@
-import datetime
 import sqlalchemy
 from db_session import SqlAlchemyBase
 from sqlalchemy import orm
@@ -11,4 +10,4 @@ class User(SqlAlchemyBase):
                            primary_key=True, autoincrement=True)
     nickname = sqlalchemy.Column(sqlalchemy.String, nullable=True)
 
-    words = orm.relation("Words", back_populates='user')
+    words = orm.relation("Word", back_populates='user')
