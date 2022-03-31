@@ -39,11 +39,15 @@ def reg(update, context):
     user = User()
     user.nickname = name
     db_sess = create_session()
-    db_sess.add(user)
-    db_sess.commit()
-    update.message.reply_text('Поздравляю! Вы успешно прошли регистрацию')
-    current_name = name
-    current_id = user.id
+    look = db_sess.query(User).filter(User.nickname == name).first()
+    if look:
+        update.message.reply_text('Такая учётная запись уже существует')
+    else:
+        db_sess.add(user)
+        db_sess.commit()
+        update.message.reply_text('Поздравляю! Вы успешно прошли регистрацию')
+        current_name = name
+        current_id = user.id
 
 
 def enter(update, context):
@@ -55,6 +59,8 @@ def enter(update, context):
         current_name = user.nickname
         current_id = user.id
         update.message.reply_text('Вы вошли в свой аккаунт')
+    else:
+        update.message.reply_text('Такой учётной записи не существует')
 
 
 def main():
