@@ -1,8 +1,10 @@
 import sqlalchemy as sa
+from googletrans import Translator
 from db_session import *
 import logging
-from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, CallbackContext
+from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
 from Users import User
+
 
 
 logging.basicConfig(
@@ -13,6 +15,7 @@ logger = logging.getLogger(__name__)
 TOKEN = '5296805065:AAEwF8fUJQ36bOxG6UdQIbwf4zwcjDxHE0g'
 current_name = None
 current_id = None
+tr = Translator()
 
 
 def start(update, context):
@@ -25,7 +28,8 @@ def help(update, context):
         "Мои возможномти:\n"
         "/reg - мы настоятельно рекомендуем вам зарегестрироваться, для регистрации нужно только придумать никнейм;\n"
         "/enter - вход в учётную запись;\n"
-        "/translate - перевод слова или выражения;\n"
+        "/tr_to_ru - перевод слова или выражения с английского на русский;\n"
+        "/tr_to_en - перевод слова или выражения с русского на английский;\n"
         "/translate_file - перевод содержимого файла, возвращает файл с переводом;\n"
         "/translate_from_file - бот с выбранной периодчностью будет давать перевод слова из отправленного файла;\n"
         "/game - игра: бот загадывает слово, пользователь даёт перевод;"
@@ -63,6 +67,18 @@ def enter(update, context):
         update.message.reply_text('Такой учётной записи не существует')
 
 
+def translate_to_ru(update, context):
+    text = ' '.join(context.args)
+    result = tr.translate(text, src='en', dest='ru')
+    update.message.reply_text(result.text)
+
+
+def translate_to_en(update, context):
+    text = ' '.join(context.args)
+    result = tr.translate(text, src='ru', dest='en')
+    update.message.reply_text(result.text)
+
+
 def main():
     global_init("accounts.db")
 
@@ -73,6 +89,8 @@ def main():
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(CommandHandler("reg", reg))
     dp.add_handler(CommandHandler("enter", enter))
+    dp.add_handler(CommandHandler("tr_to_ru", translate_to_ru))
+    dp.add_handler(CommandHandler("tr_to_en", translate_to_en))
 
     updater.start_polling()
 
