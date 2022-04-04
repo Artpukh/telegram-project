@@ -79,6 +79,20 @@ def translate_to_en(update, context):
     update.message.reply_text(result.text)
 
 
+def translate_file(update, context):
+    f = open('translate.txt', encoding='utf-8', mode='r')
+    content = f.read()
+    update.message.reply_text('en')
+    if tr.detect(content).lang == 'en':
+        result = tr.translate(content, dest='ru')
+        with open('translate.txt', encoding='utf-8', mode='w') as f:
+            f.write(result.text)
+    else:
+        result = tr.translate(content, dest='en')
+        with open('translate.txt', encoding='utf-8', mode='w') as f:
+            f.write(result.text)
+
+
 def main():
     global_init("accounts.db")
 
@@ -91,6 +105,7 @@ def main():
     dp.add_handler(CommandHandler("enter", enter))
     dp.add_handler(CommandHandler("tr_to_ru", translate_to_ru))
     dp.add_handler(CommandHandler("tr_to_en", translate_to_en))
+    dp.add_handler(CommandHandler("translate_file", translate_file))
 
     updater.start_polling()
 
