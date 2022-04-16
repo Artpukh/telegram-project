@@ -2,8 +2,9 @@ import sqlalchemy as sa
 from googletrans import Translator
 from db_session import *
 import logging
-from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
+from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, ConversationHandler
 from Users import User
+import os
 
 
 
@@ -16,6 +17,7 @@ TOKEN = '5296805065:AAEwF8fUJQ36bOxG6UdQIbwf4zwcjDxHE0g'
 current_name = None
 current_id = None
 tr = Translator()
+chat_id = 720508763
 
 
 def start(update, context):
@@ -34,6 +36,10 @@ def help(update, context):
         "/translate_from_file - бот с выбранной периодчностью будет давать перевод слова из отправленного файла;\n"
         "/game - игра: бот загадывает слово, пользователь даёт перевод;"
         )
+
+
+def stop(update, context):
+    return ConversationHandler.END
 
 
 def reg(update, context):
@@ -67,45 +73,83 @@ def enter(update, context):
         update.message.reply_text('Такой учётной записи не существует')
 
 
-def translate_to_ru(update, context):
-    text = ' '.join(context.args)
-    result = tr.translate(text, src='en', dest='ru')
-    update.message.reply_text(result.text)
+def translate(update, context):
+    update.message.reply_text('Введите текст')
+    return 1
 
 
-def translate_to_en(update, context):
-    text = ' '.join(context.args)
-    result = tr.translate(text, src='ru', dest='en')
+def translation(update, context):
+    text = update.message.text
+    if tr.detect(text).lang == 'en':
+        result = tr.translate(text, dest='ru')
+    else:
+        result = tr.translate(text, dest='en')
     update.message.reply_text(result.text)
+    return ConversationHandler.END
 
 
 def translate_file(update, context):
-    f = open('translate.txt', encoding='utf-8', mode='r')
-    content = f.read()
-    update.message.reply_text('en')
+    update.message.reply_text('Отправьте файл')
+    return 1
+
+
+def translation_file(update, context):
+    with open(update.message.document.file_name, mode='wb') as f:
+        context.bot.get_file(update.message.document).download(out=f)
+    with open(update.message.document.file_name, encoding='utf-8', mode='r') as f:
+        content = f.read()
+        print(content)
     if tr.detect(content).lang == 'en':
         result = tr.translate(content, dest='ru')
-        with open('translate.txt', encoding='utf-8', mode='w') as f:
+        with open(update.message.document.file_name, encoding='utf-8', mode='w') as f:
             f.write(result.text)
     else:
         result = tr.translate(content, dest='en')
-        with open('translate.txt', encoding='utf-8', mode='w') as f:
+        with open(update.message.document.file_name, encoding='utf-8', mode='w') as f:
             f.write(result.text)
+    context.bot.send_document(chat_id=chat_id, document=open(f'{update.message.document.file_name}', mode='rb'))
+    os.remove(update.message.document.file_name)
+    return ConversationHandler.END
 
 
 def main():
     global_init("accounts.db")
 
-    updater = Updater(TOKEN)
+    updater = Updater(TOKEN, use_context=True)
 
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
+    tr_conv = ConversationHandler (
+        entry_points=[CommandHandler('translate', translate)],
+
+        # Состояние внутри диалога.
+        # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
+        states={
+            # Функция читает ответ на первый вопрос и задаёт второй.
+            1: [MessageHandler(Filters.text, translation)]
+        },
+
+        # Точка прерывания диалога. В данном случае — команда /stop.
+        fallbacks=[CommandHandler('stop', stop)]
+    )
+    file_conv = ConversationHandler(
+        entry_points=[CommandHandler('translate_file', translate_file)],
+
+        # Состояние внутри диалога.
+        # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
+        states={
+            # Функция читает ответ на первый вопрос и задаёт второй.
+            1: [MessageHandler(Filters.document, translation_file)]
+        },
+
+        # Точка прерывания диалога. В данном случае — команда /stop.
+        fallbacks=[CommandHandler('stop', stop)]
+    )
+    dp.add_handler(tr_conv)
     dp.add_handler(CommandHandler("reg", reg))
     dp.add_handler(CommandHandler("enter", enter))
-    dp.add_handler(CommandHandler("tr_to_ru", translate_to_ru))
-    dp.add_handler(CommandHandler("tr_to_en", translate_to_en))
-    dp.add_handler(CommandHandler("translate_file", translate_file))
+    dp.add_handler(file_conv)
 
     updater.start_polling()
 
