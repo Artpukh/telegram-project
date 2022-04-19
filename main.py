@@ -9,6 +9,7 @@ from Words import Word
 import os
 import schedule
 from swift import words
+
 symbs = words
 from random import choice
 import datetime
@@ -26,6 +27,12 @@ reply_keyboard = [['/start', '/help', "/reg"],
                   ['/']]
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
 tr = Translator()
+res = ""
+with open("russian.txt", "r", encoding="utf-8") as file:
+    allText = file.readlines()  # список слов типа "слово\n"
+    # print(allText[:11], type(allText))
+    # for i in range(len(allText)):
+    #     allText[i] = allText[i][:-1]
 
 
 def start(update, context):
@@ -53,7 +60,7 @@ def help(update, context):
         "/translate_file - translation of the file contents, returns a file with translation;\n"
         "/translate_from_file - the bot with the selected frequency will translate the word from the sent file;\n"
         "/game - game: the bot makes a word, the user gives a translation;"
-        )
+    )
 
 
 def stop_fl(update, context):
@@ -115,6 +122,35 @@ def stop_tr(update, context):
     return ConversationHandler.END
 
 
+def start_game(update, context):
+    global allText, res
+    word = choice(allText[:-1])  # рандомное слово
+    res = word
+    update.message.reply_text(f"Переведи слово: {word}")
+    return 1
+
+
+# реализация "игры"
+def game(update, context):
+    global res
+    text = update.message.text
+    transl = tr.translate(res, dest="en")
+    if text == "/stop_game":
+        return ConversationHandler.END
+    if text == transl.text:
+        update.message.reply_text("Поздравляю! Ты правильно написал перевод")
+        return 1
+    else:
+        update.message.reply_text(f"К сожалению, ты ошибся. Правильно: {transl.text}. Попробуем другое слово")
+        return 1
+
+
+
+def stop_game(update, context):
+    update.message.reply_text('Всего доброго')
+    return ConversationHandler.END
+
+
 def translate_file(update, context):
     update.message.reply_text('Отправьте файл')
     return 1
@@ -134,7 +170,8 @@ def translation_file(update, context):
         result = tr.translate(content, dest='en')
         with open(update.message.document.file_name, encoding='utf-8', mode='w') as f:
             f.write(result.text)
-    context.bot.send_document(chat_id=update.message.chat_id, document=open(f'{update.message.document.file_name}', mode='rb'))
+    context.bot.send_document(chat_id=update.message.chat_id,
+                              document=open(f'{update.message.document.file_name}', mode='rb'))
     os.remove(update.message.document.file_name)
     return ConversationHandler.END
 
@@ -203,6 +240,21 @@ def main():
         # Точка прерывания диалога. В данном случае — команда /stop.
         fallbacks=[CommandHandler('stop_tr', stop_tr)]
     )
+
+    game_conv = ConversationHandler(
+        entry_points=[CommandHandler('start_game', start_game)],
+
+        # Состояние внутри диалога.
+        # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
+        states={
+            # Функция читает ответ на первый вопрос и задаёт второй.
+            1: [MessageHandler(Filters.text, game)]
+        },
+
+        # Точка прерывания диалога. В данном случае — команда /stop.
+        fallbacks=[CommandHandler('stop_game', stop_game)]
+    )
+
     file_conv = ConversationHandler(
         entry_points=[CommandHandler('translate_file', translate_file)],
 
@@ -216,12 +268,14 @@ def main():
         # Точка прерывания диалога. В данном случае — команда /stop.
         fallbacks=[CommandHandler('stop_fl', stop_fl)]
     )
+    dp.add_handler(game_conv)
     dp.add_handler(tr_conv)
     dp.add_handler(CommandHandler("reg", reg))
     dp.add_handler(CommandHandler("enter", enter))
     dp.add_handler(file_conv)
     dp.add_handler(CommandHandler('send_words', send_words))
     dp.add_handler(CommandHandler("unset", unset))
+    dp.add_handler(CommandHandler("game", game))
 
     updater.start_polling()
 
@@ -232,5 +286,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
