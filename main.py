@@ -55,7 +55,7 @@ def help(update, context):
         "/translate - перевод слова или выражения с английского на русский и наоборот;\n"
         "/translate_file - перевод содержимого файла, возвращает файл с переводом;\n"
         "/translate_from_file - бот с выбранной периодчностью будет давать перевод слова из отправленного файла;\n"
-        "/start_game - игра: бот загадывает слово, пользователь даёт перевод;"
+        "/game - игра: бот загадывает слово, пользователь даёт перевод;"
         "\n"
         "\n"
         "ENG\n"
@@ -65,7 +65,7 @@ def help(update, context):
         "/translate - translation of a word or expression from English to Russian and vice versa;\n"
         "/translate_file - translation of the file contents, returns a file with translation;\n"
         "/translate_from_file - the bot with the selected frequency will translate the word from the sent file;\n"
-        "/start_game - game: the bot makes a word, the user gives a translation;"
+        "/game - game: the bot makes a word, the user gives a translation;"
     )
 
 
@@ -170,34 +170,28 @@ def stop_fl(update, context):
 # после получения обратной связи тг-бот сравнивает сообщение пользователя и фактический перевод
 # после обработки выводит соответствующее сообщение
 # точка запуска сценария диалога "игры"
-def start_game(update, context):
+def game(update, context):
     global allText, res
-    word = choice(lst_words)  # рандомное слово
+    word = choice(allText[:-1])  # рандомное слово
     res = word
     update.message.reply_text(f"Переведи слово: {word}")
     return 1
 
 
-# реализация "игры" и обработчик сценария диалога "игры"
-# P.S. для продолжения игры необходимо ввести "/restart"
-def game(update, context):
-    global res, allText
+# реализация "игры"
+def time_game(update, context):
+    global res
     text = update.message.text
     transl = tr.translate(res, dest="en")
     if text == "/stop_game":
         return ConversationHandler.END
     if text == transl.text:
-        update.message.reply_text(
-            f'Поздравляю! Ты правильно написал перевод. Попробуем другое слово. Для продолжения напишите "/restart"')
-        word = choice(lst_words)  # рандомное слово
-        res = word
+        update.message.reply_text('Поздравляю! Ты правильно написал перевод.\n'
+                                  'Для продолжения нажмите "/game"')
         return 1
     else:
-        update.message.reply_text(
-            f'К сожалению, ты ошибся. Правильно: {transl.text}. Попробуем другое слово. '
-            f'Для продолжения напишите "/restart"')
-        word = choice(lst_words)  # рандомное слово
-        res = word
+        update.message.reply_text(f'К сожалению, ты ошибся. Правильно: {transl.text}. Попробуем другое слово.\n'
+                                  f'Для продолжения нажмите "/game"')
         return 1
 
 
@@ -275,14 +269,13 @@ def main():
     )
 
     game_conv = ConversationHandler(
-        entry_points=[CommandHandler('start_game', start_game)],
+        entry_points=[CommandHandler('game', game)],
 
         # Состояние внутри диалога.
         # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
         states={
             # Функция читает ответ на первый вопрос и задаёт второй.
-            1: [MessageHandler(Filters.text, game)],
-            2: [MessageHandler(Filters.text, start_game)]
+            1: [MessageHandler(Filters.text, time_game)]
         },
 
         # Точка прерывания диалога. В данном случае — команда /stop.
