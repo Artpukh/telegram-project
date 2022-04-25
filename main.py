@@ -25,7 +25,8 @@ current_id = None
 
 # виртуальная клавиатура
 reply_keyboard = [['/start', '/help', "/reg"],
-                  ['/enter', '/translate', "/translate_file"]]
+                  ['/enter', '/translate', "/translate_file"],
+                  ["/game", "/unset"]]
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
 tr = Translator()
 
@@ -41,7 +42,10 @@ with open("russian.txt", "r", encoding="utf-8") as file:
 
 # запуск бота
 def start(update, context):
-    update.message.reply_text(f"Бот начал работу...")
+    reply_keyboard = [["/reg", '/enter']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    update.message.reply_text(f"Используйте комманды '/reg <никнейм>' для регистрации и '/enter <никнейм>' для входа",
+                              reply_markup=markup)
 
 
 # памятка об использовании команд тг-бота
@@ -51,21 +55,31 @@ def help(update, context):
         "Привет! Это бот-переводчик!\n"
         "Мои возможномти:\n"
         "/reg - мы настоятельно рекомендуем вам зарегестрироваться, для регистрации нужно только придумать никнейм;\n"
+        "сообщение пользователя должно выглядеть так: '/reg <никнейм>'\n"
         "/enter - вход в учётную запись;\n"
+        "сообщение пользователя должно выглядеть так: '/enter <никнейм>'\n"
         "/translate - перевод слова или выражения с английского на русский и наоборот;\n"
         "/translate_file - перевод содержимого файла, возвращает файл с переводом;\n"
         "/translate_from_file - бот с выбранной периодчностью будет давать перевод слова из отправленного файла;\n"
-        "/start_game - игра: бот загадывает слово, пользователь даёт перевод;"
+        "/game - игра: бот загадывает слово, пользователь даёт перевод;"
+        "/send_words <время> - время, в которое каждый день будет приходить слово"
+        "/unset - убрать таймер"
         "\n"
         "\n"
         "ENG\n"
         "Hello! This is a translate bot\n"
         "/reg - we strongly recommend you to register, you only need to come up with a nickname to register;\n"
+        "the user's message should look like this: \n"
+        "'/reg <nickname>'\n"
         "/enter - login to your account;\n"
+        "the user's message should look like this: \n"
+        "'/enter <nickname>'\n"
         "/translate - translation of a word or expression from English to Russian and vice versa;\n"
         "/translate_file - translation of the file contents, returns a file with translation;\n"
         "/translate_from_file - the bot with the selected frequency will translate the word from the sent file;\n"
-        "/start_game - game: the bot makes a word, the user gives a translation;"
+        "/game - game: the bot makes a word, the user gives a translation;"
+        "/send_words <time> - the time at which the word will come every day"
+        "/unset - remove the timer"
     )
 
 
@@ -92,6 +106,10 @@ def reg(update, context):
 
 # вход в аккаунт
 def enter(update, context):
+    reply_keyboard = [['/start', '/help', "/reg"],
+                      ['/enter', '/translate', "/translate_file"],
+                      ["/game", "/unset"]]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     global current_name, current_id
     name = ' '.join(context.args)
     db_sess = create_session()
@@ -99,7 +117,7 @@ def enter(update, context):
     if user:
         current_name = user.nickname
         current_id = user.id
-        update.message.reply_text('Вы вошли в свой аккаунт')
+        update.message.reply_text('Вы вошли в свой аккаунт', reply_markup=markup)
     else:
         update.message.reply_text('Такой учётной записи не существует')
 
@@ -107,21 +125,31 @@ def enter(update, context):
 # точка запуска сценария диалога переводчика
 # переводчик
 def translate(update, context):
-    update.message.reply_text('Введите текст')
+    reply_keyboard = [["/stop_tr"]]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    update.message.reply_text('Введите текст', reply_markup=markup)
     return 1
 
 
 # обработчик сценария диалога переводчика
 # перевод фразы, введённой пользователем, с русского на английский и наоборот
 def translation(update, context):
+    global reply_keyboard
+    reply_keyboard = [['/stop_tr']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     text = update.message.text
     if text == '/stop_tr':
+        reply_keyboard = [['/start', '/help', "/reg"],
+                          ['/enter', '/translate', "/translate_file"],
+                          ["/game", "/unset"]]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        update.message.reply_text('Всего доброго', reply_markup=markup)
         return ConversationHandler.END
     if tr.detect(text).lang == 'en':
         result = tr.translate(text, dest='ru')
     else:
         result = tr.translate(text, dest='en')
-    update.message.reply_text(result.text)
+    update.message.reply_text(result.text, reply_markup=markup)
     return 1
 
 
@@ -133,7 +161,9 @@ def stop_tr(update, context):
 
 # точка запуска сценария диалога переводчика файла
 def translate_file(update, context):
-    update.message.reply_text('Отправьте файл')
+    reply_keyboard = [["/stop_fl"]]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    update.message.reply_text('Отправьте файл', reply_markup=markup)
     return 1
 
 
@@ -161,6 +191,11 @@ def translation_file(update, context):
 
 # точка остановки сценария диалога переводчика файла
 def stop_fl(update, context):
+    reply_keyboard = [['/start', '/help', "/reg"],
+                      ['/enter', '/translate', "/translate_file"],
+                      ["/game", "/unset"]]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    update.message.reply_text(f"Всего хорошего", reply_markup=markup)
     return ConversationHandler.END
 
 
@@ -178,27 +213,46 @@ def start_game(update, context):
     return 1
 
 
-# реализация "игры" и обработчик сценария диалога "игры"
-# P.S. для продолжения игры необходимо ввести "/restart"
+# игра представляет собой следущее:
+# программа выбирает случайное слово из списка allText
+# выводит это слово и предлагает пользователю его перевести на английский
+# после получения обратной связи тг-бот сравнивает сообщение пользователя и фактический перевод
+# после обработки выводит соответствующее сообщение
+# точка запуска сценария диалога "игры"
 def game(update, context):
-    global res, allText
+    global allText, res
+    word = choice(allText[:-1])  # рандомное слово
+    res = word
+    reply_keyboard = [["/stop_game"]]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    update.message.reply_text(f"Переведи слово: {word}", reply_markup=markup)
+    return 1
+
+
+# реализация "игры"
+def time_game(update, context):
+    global res
     text = update.message.text
     transl = tr.translate(res, dest="en")
+    reply_keyboard = [["/game"]]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     if text == "/stop_game":
+        reply_keyboard = [['/start', '/help', "/reg"],
+                          ['/enter', '/translate', "/translate_file"],
+                          ["/game", "/unset"]]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        update.message.reply_text('Всего доброго', reply_markup=markup)
         return ConversationHandler.END
-    if text == transl.text:
-        update.message.reply_text(
-            f'Поздравляю! Ты правильно написал перевод. Попробуем другое слово. Для продолжения напишите "/restart"')
-        word = choice(lst_words)  # рандомное слово
-        res = word
-        return 1
+    if text.lower() == transl.text.lower():
+        update.message.reply_text('Поздравляю! Ты правильно написал перевод.\n'
+                                  'Для продолжения нажмите "/game"', reply_markup=markup)
+        return ConversationHandler.END
     else:
-        update.message.reply_text(
-            f'К сожалению, ты ошибся. Правильно: {transl.text}. Попробуем другое слово. '
-            f'Для продолжения напишите "/restart"')
-        word = choice(lst_words)  # рандомное слово
-        res = word
-        return 1
+        update.message.reply_text(f'К сожалению, ты ошибся. Перевод твоего слова - {tr.translate(text, dest="ru").text}'
+                                  f'\n'
+                                  f'Правильно: {transl.text}. Попробуем другое слово.\n'
+                                  f'Для продолжения нажмите "/game"', reply_markup=markup)
+        return ConversationHandler.END
 
 
 # точка остановки сценария диалога "игры"
@@ -275,14 +329,13 @@ def main():
     )
 
     game_conv = ConversationHandler(
-        entry_points=[CommandHandler('start_game', start_game)],
+        entry_points=[CommandHandler('game', game)],
 
         # Состояние внутри диалога.
         # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
         states={
             # Функция читает ответ на первый вопрос и задаёт второй.
-            1: [MessageHandler(Filters.text, game)],
-            2: [MessageHandler(Filters.text, start_game)]
+            1: [MessageHandler(Filters.text, time_game)]
         },
 
         # Точка прерывания диалога. В данном случае — команда /stop.
