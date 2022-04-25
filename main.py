@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 from googletrans import Translator
 from db_session import *
 import logging
@@ -9,36 +8,43 @@ from Words import Word
 import os
 import schedule
 from swift import words
-
-symbs = words
 from random import choice
 import datetime
+
+symbs = words
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
+# токен тг-бота
 TOKEN = '5296805065:AAEwF8fUJQ36bOxG6UdQIbwf4zwcjDxHE0g'
 current_name = None
 current_id = None
+
+# виртуальная клавиатура
 reply_keyboard = [['/start', '/help', "/reg"],
-                  ['/enter', '/translate', "/translate_file"],
-                  ['/']]
+                  ['/enter', '/translate', "/translate_file"]]
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
 tr = Translator()
+
+# обработка файла в список
 res = ""
+lst_words = []
 with open("russian.txt", "r", encoding="utf-8") as file:
     allText = file.readlines()  # список слов типа "слово\n"
-    # print(allText[:11], type(allText))
-    # for i in range(len(allText)):
-    #     allText[i] = allText[i][:-1]
+    for i in allText:
+        lst_words.append(i[:-1])
+    file.close()
 
 
+# запуск бота
 def start(update, context):
-    pass
+    update.message.reply_text(f"Бот начал работу...")
 
 
+# памятка об использовании команд тг-бота
 def help(update, context):
     update.message.reply_text(
         "RU\n"
@@ -49,7 +55,7 @@ def help(update, context):
         "/translate - перевод слова или выражения с английского на русский и наоборот;\n"
         "/translate_file - перевод содержимого файла, возвращает файл с переводом;\n"
         "/translate_from_file - бот с выбранной периодчностью будет давать перевод слова из отправленного файла;\n"
-        "/game - игра: бот загадывает слово, пользователь даёт перевод;"
+        "/start_game - игра: бот загадывает слово, пользователь даёт перевод;"
         "\n"
         "\n"
         "ENG\n"
@@ -59,14 +65,11 @@ def help(update, context):
         "/translate - translation of a word or expression from English to Russian and vice versa;\n"
         "/translate_file - translation of the file contents, returns a file with translation;\n"
         "/translate_from_file - the bot with the selected frequency will translate the word from the sent file;\n"
-        "/game - game: the bot makes a word, the user gives a translation;"
+        "/start_game - game: the bot makes a word, the user gives a translation;"
     )
 
 
-def stop_fl(update, context):
-    return ConversationHandler.END
-
-
+# регистрация аккаунта (внесение его данный в БД)
 def reg(update, context):
     global current_name, current_id
     name = ' '.join(context.args)
@@ -87,6 +90,7 @@ def reg(update, context):
         current_id = user.id
 
 
+# вход в аккаунт
 def enter(update, context):
     global current_name, current_id
     name = ' '.join(context.args)
@@ -100,11 +104,15 @@ def enter(update, context):
         update.message.reply_text('Такой учётной записи не существует')
 
 
+# точка запуска сценария диалога переводчика
+# переводчик
 def translate(update, context):
     update.message.reply_text('Введите текст')
     return 1
 
 
+# обработчик сценария диалога переводчика
+# перевод фразы, введённой пользователем, с русского на английский и наоборот
 def translation(update, context):
     text = update.message.text
     if text == '/stop_tr':
@@ -117,45 +125,20 @@ def translation(update, context):
     return 1
 
 
+# точка остановки сценария диалога переводчика
 def stop_tr(update, context):
     update.message.reply_text('Всего доброго')
     return ConversationHandler.END
 
 
-def start_game(update, context):
-    global allText, res
-    word = choice(allText[:-1])  # рандомное слово
-    res = word
-    update.message.reply_text(f"Переведи слово: {word}")
-    return 1
-
-
-# реализация "игры"
-def game(update, context):
-    global res
-    text = update.message.text
-    transl = tr.translate(res, dest="en")
-    if text == "/stop_game":
-        return ConversationHandler.END
-    if text == transl.text:
-        update.message.reply_text("Поздравляю! Ты правильно написал перевод")
-        return 1
-    else:
-        update.message.reply_text(f"К сожалению, ты ошибся. Правильно: {transl.text}. Попробуем другое слово")
-        return 1
-
-
-
-def stop_game(update, context):
-    update.message.reply_text('Всего доброго')
-    return ConversationHandler.END
-
-
+# точка запуска сценария диалога переводчика файла
 def translate_file(update, context):
     update.message.reply_text('Отправьте файл')
     return 1
 
 
+# обработчик файла
+# открывает файл переводит содержимое текста и зменяет содержимое файла
 def translation_file(update, context):
     with open(update.message.document.file_name, mode='wb') as f:
         context.bot.get_file(update.message.document).download(out=f)
@@ -173,6 +156,54 @@ def translation_file(update, context):
     context.bot.send_document(chat_id=update.message.chat_id,
                               document=open(f'{update.message.document.file_name}', mode='rb'))
     os.remove(update.message.document.file_name)
+    return ConversationHandler.END
+
+
+# точка остановки сценария диалога переводчика файла
+def stop_fl(update, context):
+    return ConversationHandler.END
+
+
+# игра представляет собой следущее:
+# программа выбирает случайное слово из списка allText
+# выводит это слово и предлагает пользователю его перевести на английский
+# после получения обратной связи тг-бот сравнивает сообщение пользователя и фактический перевод
+# после обработки выводит соответствующее сообщение
+# точка запуска сценария диалога "игры"
+def start_game(update, context):
+    global allText, res
+    word = choice(lst_words)  # рандомное слово
+    res = word
+    update.message.reply_text(f"Переведи слово: {word}")
+    return 1
+
+
+# реализация "игры" и обработчик сценария диалога "игры"
+# P.S. для продолжения игры необходимо ввести "/restart"
+def game(update, context):
+    global res, allText
+    text = update.message.text
+    transl = tr.translate(res, dest="en")
+    if text == "/stop_game":
+        return ConversationHandler.END
+    if text == transl.text:
+        update.message.reply_text(
+            f'Поздравляю! Ты правильно написал перевод. Попробуем другое слово. Для продолжения напишите "/restart"')
+        word = choice(lst_words)  # рандомное слово
+        res = word
+        return 1
+    else:
+        update.message.reply_text(
+            f'К сожалению, ты ошибся. Правильно: {transl.text}. Попробуем другое слово. '
+            f'Для продолжения напишите "/restart"')
+        word = choice(lst_words)  # рандомное слово
+        res = word
+        return 1
+
+
+# точка остановки сценария диалога "игры"
+def stop_game(update, context):
+    update.message.reply_text('Всего доброго')
     return ConversationHandler.END
 
 
@@ -217,6 +248,7 @@ def unset(update, context):
     update.message.reply_text(text)
 
 
+# главная функция, в которой регистрируются обраотчики в диспетчере
 def main():
     global_init("accounts.db")
 
@@ -227,6 +259,7 @@ def main():
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
+
     tr_conv = ConversationHandler(
         entry_points=[CommandHandler('translate', translate)],
 
@@ -248,7 +281,8 @@ def main():
         # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
         states={
             # Функция читает ответ на первый вопрос и задаёт второй.
-            1: [MessageHandler(Filters.text, game)]
+            1: [MessageHandler(Filters.text, game)],
+            2: [MessageHandler(Filters.text, start_game)]
         },
 
         # Точка прерывания диалога. В данном случае — команда /stop.
