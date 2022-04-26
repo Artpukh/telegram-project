@@ -42,10 +42,7 @@ with open("russian.txt", "r", encoding="utf-8") as file:
 
 # запуск бота
 def start(update, context):
-    reply_keyboard = [["/reg", '/enter']]
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-    update.message.reply_text(f"Используйте комманды '/reg <никнейм>' для регистрации и '/enter <никнейм>' для входа",
-                              reply_markup=markup)
+    update.message.reply_text(f"Используйте комманды '/reg <никнейм>' для регистрации и '/enter <никнейм>' для входа")
 
 
 # памятка об использовании команд тг-бота
@@ -247,6 +244,11 @@ def time_game(update, context):
         update.message.reply_text('Поздравляю! Ты правильно написал перевод.\n'
                                   'Для продолжения нажмите "/game"', reply_markup=markup)
         return ConversationHandler.END
+    if text == "yandex":
+        update.message.reply_text('Привет из Яндекс Лицея 2021-2022 \U0001F44B',
+                                  reply_markup=markup)
+        return ConversationHandler.END
+    
     else:
         update.message.reply_text(f'К сожалению, ты ошибся. Перевод твоего слова - {tr.translate(text, dest="ru").text}'
                                   f'\n'
