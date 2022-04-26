@@ -58,8 +58,8 @@ def help(update, context):
         "/translate - перевод слова или выражения с английского на русский и наоборот;\n"
         "/translate_file - перевод содержимого файла, возвращает файл с переводом;\n"
         "/translate_from_file - бот с выбранной периодчностью будет давать перевод слова из отправленного файла;\n"
-        "/game - игра: бот загадывает слово, пользователь даёт перевод;"
-        "/send_words <время> - время, в которое каждый день будет приходить слово"
+        "/game - игра: бот загадывает слово, пользователь даёт перевод;\n"
+        "/send_words <время> - время, в которое каждый день будет приходить слово\n"
         "/unset - убрать таймер"
         "\n"
         "\n"
@@ -74,8 +74,8 @@ def help(update, context):
         "/translate - translation of a word or expression from English to Russian and vice versa;\n"
         "/translate_file - translation of the file contents, returns a file with translation;\n"
         "/translate_from_file - the bot with the selected frequency will translate the word from the sent file;\n"
-        "/game - game: the bot makes a word, the user gives a translation;"
-        "/send_words <time> - the time at which the word will come every day"
+        "/game - game: the bot makes a word, the user gives a translation;\n"
+        "/send_words <time> - the time at which the word will come every day\n"
         "/unset - remove the timer"
     )
 
