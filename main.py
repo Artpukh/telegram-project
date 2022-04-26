@@ -272,6 +272,7 @@ def remove_job_if_exists(name, context):
     return True
 
 
+# Функция отвечает за отправку новых слов из swift.py
 def job(context: CallbackContext):
     word = ''
     slova = Word()
@@ -279,24 +280,26 @@ def job(context: CallbackContext):
     spis = []
     for a in db_sess.query(Word).filter(Word.user_id == current_id):
         spis.append(a.words)
-    while len(word) < 2 and word in spis:
+    while len(word) <= 4 and word in spis:
         word = choice(symbs)
     slova.user_id = current_id
     slova.words = word
     db_sess.add(slova)
     db_sess.commit()
-    word = tr.translate(word, dest='en')
-    context.bot.send_message(chat_id=context.job.context, text=word.text)
+    word_tr = tr.translate(word, dest='en')
+    context.bot.send_message(chat_id=context.job.context, text=f'{word} - {word_tr.text}')
 
 
+# команда отвечает за начало сценария по отправке слов из swift.py
 def send_words(update: Update, context: CallbackContext):
     due = context.args[0].split(':')
 
     context.job_queue.run_daily(job, time=datetime.time(hour=int(due[0]) - 3, minute=int(due[1]), second=00),
                                 days=(0, 1, 2, 3, 4, 5, 6),
-                                context=update.message.chat_id)
+                                context=update.message.chat_id, name=str(update.message.chat_id))
 
 
+# функиця убирает существующие таймеры, нераздельно связано
 def unset(update, context):
     chat_id = update.message.chat_id
     job_removed = remove_job_if_exists(str(chat_id), context)
